@@ -1,47 +1,50 @@
 package com.villagelocator.controller;
 
-import org.springframework.web.bind.annotation.*;
-import org.springframework.http.ResponseEntity;
-import org.springframework.beans.factory.annotation.Autowired;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
 import com.villagelocator.service.VillageLocatorService;
-import java.util.List;
-import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/villages")
-@CrossOrigin(origins = "*")
 public class VillageController {
-    
+
     @Autowired
     private VillageLocatorService villageLocatorService;
-    
-    @GetMapping("/health")
-    public ResponseEntity<?> health() {
-        JsonObject response = new JsonObject();
-        response.addProperty("status", "ok");
-        return ResponseEntity.ok(response.toString());
+
+    /**
+     * Find villages from seed and location
+     * @param seed World seed
+     * @param x Center X coordinate
+     * @param z Center Z coordinate
+     * @param radius Search radius in blocks
+     * @return List of village coordinates
+     */
+    @GetMapping("/find")
+    public Map<String, Object> findVillages(
+            @RequestParam long seed,
+            @RequestParam int x,
+            @RequestParam int z,
+            @RequestParam(defaultValue = "10000") int radius) {
+        
+        List<Map<String, Integer>> villages = villageLocatorService.findVillages(seed, x, z, radius);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("seed", seed);
+        response.put("centerX", x);
+        response.put("centerZ", z);
+        response.put("radius", radius);
+        response.put("count", villages.size());
+        response.put("villages", villages);
+        
+        return response;
     }
 
-    @GetMapping
-    public ResponseEntity<?> getVillagesBySeed(@RequestParam long seed) {
-        try {
-            // Use the actual VillageLocatorService to find villages
-            List<Map<String, Integer>> villages = villageLocatorService.findVillages(seed, 0, 0, 5000);
-            
-            JsonArray jsonArray = new JsonArray();
-            
-            for (Map<String, Integer> village : villages) {
-                JsonObject jsonVillage = new JsonObject();
-                jsonVillage.addProperty("x", village.get("x"));
-                jsonVillage.addProperty("z", village.get("z"));
-                jsonArray.add(jsonVillage);
-            }
-            
-            return ResponseEntity.ok(jsonArray.toString());
-        } catch (Exception e) {
-            return ResponseEntity.status(500).body("{\"error\":\"" + e.getMessage() + "\"}");
-        }
+    /**
+     * Health check endpoint
+     */
+    @GetMapping("/health")
+    public Map<String, String> health() {
+        return Map.of("status", "ok");
     }
 }

@@ -36,21 +36,7 @@
             <artifactId>gson</artifactId>
             <version>2.10.1</version>
         </dependency>
-        <!-- Amidst for village finding -->
-        <dependency>
-            <groupId>amidst</groupId>
-            <artifactId>amidst</artifactId>
-            <version>4.7.11</version>
-        </dependency>
     </dependencies>
-
-    <repositories>
-        <!-- Amidst repository -->
-        <repository>
-            <id>amidst-repo</id>
-            <url>https://repo.maven.apache.org/maven2</url>
-        </repository>
-    </repositories>
 
     <build>
         <plugins>

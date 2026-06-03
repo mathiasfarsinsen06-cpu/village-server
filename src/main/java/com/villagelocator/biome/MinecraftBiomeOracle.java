@@ -22,6 +22,7 @@ import java.util.Set;
  *   <li>desert</li>
  *   <li>taiga</li>
  *   <li>snowy_plains</li>
+ *   <li>cherry_grove (added in 1.21)</li>
  * </ul>
  * </p>
  */
@@ -94,7 +95,7 @@ public class MinecraftBiomeOracle implements BiomeDataOracle {
      * <ul>
      *   <li>~35 % of the surface is ocean or coastal (not valid for villages).</li>
      *   <li>The remaining land is split between village-valid biomes
-     *       (plains, savanna, desert, taiga, snowy_plains) and non-village biomes
+     *       (plains, savanna, desert, taiga, snowy_plains, cherry_grove) and non-village biomes
      *       (forest, jungle, swamp, etc.) in proportions similar to Minecraft 1.21.4.</li>
      * </ul>
      * </p>
@@ -111,8 +112,9 @@ public class MinecraftBiomeOracle implements BiomeDataOracle {
             if (humidity <  0.35) return "savanna";
             return "jungle";
         } else if (temperature > 0.05) {
-            // Temperate zone: plains only when dry; forest otherwise
+            // Temperate zone: plains when dry, cherry_grove when very humid, forest otherwise
             if (humidity < 0.00) return "plains";
+            if (humidity > 0.55) return "cherry_grove";
             return "forest";
         } else if (temperature > -0.35) {
             // Cold zone: taiga when moderately moist; forest when wet

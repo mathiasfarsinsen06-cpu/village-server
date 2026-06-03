@@ -21,6 +21,31 @@ public class VillageController {
     private VillageFinderService villageFinderService;
     
     /**
+     * Find villages by seed only (for MOD integration).
+     * Searches a large region around origin.
+     */
+    @GetMapping("")
+    public ResponseEntity<?> findVillagesBySeededOnly(@RequestParam long seed) {
+        
+        // Search a 500x500 chunk region (large world)
+        List<VillageLocation> villages = villageFinderService.findVillages(
+            seed, 
+            -250,   // minChunkX
+            250,    // maxChunkX
+            -250,   // minChunkZ
+            250     // maxChunkZ
+        );
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("seed", seed);
+        response.put("villageCount", villages.size());
+        response.put("villages", villages);
+        response.put("algorithm", "AMIDST v4.7 adapted for Minecraft 1.21.4");
+        
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
      * Find villages in a region.
      */
     @GetMapping("/search")

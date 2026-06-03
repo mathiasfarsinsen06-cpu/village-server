@@ -1,5 +1,7 @@
 package com.villagelocator.service;
 
+import com.villagelocator.algorithm.VillageAlgorithm;
+import com.villagelocator.biome.MinecraftBiomeOracle;
 import org.springframework.stereotype.Service;
 import java.util.*;
 
@@ -16,6 +18,9 @@ public class VillageFinderService {
 
     public List<Map<String, Integer>> findVillages(long seed, int centerX, int centerZ, int radius) {
         List<Map<String, Integer>> villages = new ArrayList<>();
+
+        // Build the AMIDST-style village algorithm with biome validation for this seed.
+        VillageAlgorithm villageAlgorithm = new VillageAlgorithm(new MinecraftBiomeOracle(seed));
 
         int centerChunkX = centerX >> 4;
         int centerChunkZ = centerZ >> 4;
@@ -41,7 +46,8 @@ public class VillageFinderService {
                     && candidateChunkX <= maxChunkX
                     && candidateChunkZ >= minChunkZ
                     && candidateChunkZ <= maxChunkZ
-                    && isValidVillageLocation(seed, candidateChunkX, candidateChunkZ, centerX, centerZ, radius)) {
+                    && isWithinRadius(candidateChunkX, candidateChunkZ, centerX, centerZ, radius)
+                    && villageAlgorithm.isValidLocation(candidateChunkX, candidateChunkZ)) {
                     Map<String, Integer> village = new HashMap<>();
                     village.put("x", candidateChunkX * 16 + 8);
                     village.put("z", candidateChunkZ * 16 + 8);
@@ -67,7 +73,7 @@ public class VillageFinderService {
         };
     }
 
-    private boolean isValidVillageLocation(long seed, int chunkX, int chunkZ, int centerX, int centerZ, int radius) {
+    private boolean isWithinRadius(int chunkX, int chunkZ, int centerX, int centerZ, int radius) {
         int villageX = chunkX * 16 + 8;
         int villageZ = chunkZ * 16 + 8;
         return distanceSquared(villageX, villageZ, centerX, centerZ) <= (long) radius * radius;

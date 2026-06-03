@@ -1,70 +1,48 @@
 package com.villagelocator.service;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.util.*;
 
 @Service
 public class VillageLocatorService {
 
-    // Village structure generation constants (Minecraft 1.16+)
-    private static final long VILLAGE_SALT = 10387312L;
-    private static final int REGION_SIZE = 32; // chunks
-    private static final int REGION_SPACING = 34; // structure spacing in chunks
+    private final RestTemplate restTemplate = new RestTemplate();
+    private static final String MC_SEED_LOCATOR_URL = "http://localhost:3000/api/structures";
 
     public List<Map<String, Integer>> findVillages(long seed, int centerX, int centerZ, int searchRadius) {
         List<Map<String, Integer>> villages = new ArrayList<>();
         
         try {
-            // Convert block coordinates to chunk coordinates
-            int centerChunkX = centerX >> 4;
-            int centerChunkZ = centerZ >> 4;
+            // Call MC-SeedLocator API to find villages
+            String url = String.format("%s?seed=%d&x=%d&z=%d&radius=%d&type=village", 
+                MC_SEED_LOCATOR_URL, seed, centerX, centerZ, searchRadius);
             
-            // Convert to region coordinates (32 chunks per region)
-            int centerRegionX = centerChunkX >> 5;
-            int centerRegionZ = centerChunkZ >> 5;
+            String response = restTemplate.getForObject(url, String.class);
             
-            // Search radius in regions
-            int searchRadiusRegions = (searchRadius >> 9) + 2; // 9 = log2(512)
-            
-            for (int regionX = centerRegionX - searchRadiusRegions; regionX <= centerRegionX + searchRadiusRegions; regionX++) {
-                for (int regionZ = centerRegionZ - searchRadiusRegions; regionZ <= centerRegionZ + searchRadiusRegions; regionZ++) {
-                    
-                    // Calculate structure seed for this region
-                    long structureSeed = getStructureSeed(seed, regionX, regionZ, VILLAGE_SALT);
-                    Random rand = new Random(structureSeed);
-                    
-                    // Get random offset within the region
-                    int offsetX = rand.nextInt(REGION_SPACING - 8);
-                    int offsetZ = rand.nextInt(REGION_SPACING - 8);
-                    
-                    // Calculate chunk coordinates
-                    int chunkX = regionX * REGION_SPACING + offsetX;
-                    int chunkZ = regionZ * REGION_SPACING + offsetZ;
-                    
-                    // Convert to block coordinates (chunk center)
-                    int blockX = (chunkX << 4) + 8;
-                    int blockZ = (chunkZ << 4) + 8;
-                    
-                    // Distance check
-                    int dx = blockX - centerX;
-                    int dz = blockZ - centerZ;
-                    long distSq = (long)dx * dx + (long)dz * dz;
-                    
-                    if (distSq < (long)searchRadius * searchRadius) {
-                        Map<String, Integer> village = new HashMap<>();
-                        village.put("x", blockX);
-                        village.put("z", blockZ);
-                        villages.add(village);
-                    }
+            if (response != null) {
+                JsonArray jsonArray = JsonParser.parseString(response).getAsJsonArray();
+                
+                for (int i = 0; i < jsonArray.size(); i++) {
+                    JsonObject village = jsonArray.get(i).getAsJsonObject();
+                    Map<String, Integer> villageMap = new HashMap<>();
+                    villageMap.put("x", village.get("x").getAsInt());
+                    villageMap.put("z", village.get("z").getAsInt());
+                    villages.add(villageMap);
                 }
             }
             
-            // Sort by distance from center
+            // Sort by distance
+            final int centerXFinal = centerX;
+            final int centerZFinal = centerZ;
             villages.sort((a, b) -> {
-                int dx1 = a.get("x") - centerX;
-                int dz1 = a.get("z") - centerZ;
-                int dx2 = b.get("x") - centerX;
-                int dz2 = b.get("z") - centerZ;
+                int dx1 = a.get("x") - centerXFinal;
+                int dz1 = a.get("z") - centerZFinal;
+                int dx2 = b.get("x") - centerXFinal;
+                int dz2 = b.get("z") - centerZFinal;
                 
                 long dist1 = (long)dx1 * dx1 + (long)dz1 * dz1;
                 long dist2 = (long)dx2 * dx2 + (long)dz2 * dz2;
@@ -73,18 +51,10 @@ public class VillageLocatorService {
             });
             
         } catch (Exception e) {
+            System.err.println("Error calling MC-SeedLocator: " + e.getMessage());
             e.printStackTrace();
         }
         
         return villages;
-    }
-    
-    // Replicates Minecraft's structure seed calculation
-    private long getStructureSeed(long worldSeed, int regionX, int regionZ, long salt) {
-        long seed = worldSeed;
-        seed += (long)regionX * 341873128712L;
-        seed += (long)regionZ * 132897987541L;
-        seed += salt;
-        return seed;
     }
 }

@@ -11,7 +11,9 @@ public class VillageFinderService {
     private static final long VILLAGE_SALT = 10387312L;
     private static final int VILLAGE_SPACING = 32;
     private static final int VILLAGE_SEPARATION = 8;
-    private static final int GRID_SIZE = VILLAGE_SPACING + VILLAGE_SEPARATION;
+    private static final long REGION_SEED_X_MULTIPLIER = 341873128712L;
+    private static final long REGION_SEED_Z_MULTIPLIER = 132897987541L;
+    private static final int REGION_OFFSET_BOUND = VILLAGE_SPACING - VILLAGE_SEPARATION;
 
     public VillageFinderService() {
     }
@@ -31,10 +33,10 @@ public class VillageFinderService {
         int minChunkZ = centerChunkZ - searchRadiusChunks;
         int maxChunkZ = centerChunkZ + searchRadiusChunks;
 
-        int minGridX = Math.floorDiv(minChunkX, GRID_SIZE);
-        int maxGridX = Math.floorDiv(maxChunkX, GRID_SIZE);
-        int minGridZ = Math.floorDiv(minChunkZ, GRID_SIZE);
-        int maxGridZ = Math.floorDiv(maxChunkZ, GRID_SIZE);
+        int minGridX = Math.floorDiv(minChunkX, VILLAGE_SPACING);
+        int maxGridX = Math.floorDiv(maxChunkX, VILLAGE_SPACING);
+        int minGridZ = Math.floorDiv(minChunkZ, VILLAGE_SPACING);
+        int maxGridZ = Math.floorDiv(maxChunkZ, VILLAGE_SPACING);
 
         for (int gridX = minGridX; gridX <= maxGridX; gridX++) {
             for (int gridZ = minGridZ; gridZ <= maxGridZ; gridZ++) {
@@ -61,15 +63,16 @@ public class VillageFinderService {
     }
 
     private int[] getCandidateChunkInRegion(long worldSeed, int gridX, int gridZ) {
-        long regionSeed = worldSeed;
-        regionSeed ^= (long) gridX * VILLAGE_SALT;
-        regionSeed ^= (long) gridZ * VILLAGE_SALT;
+        long regionSeed = worldSeed
+            + (long) gridX * REGION_SEED_X_MULTIPLIER
+            + (long) gridZ * REGION_SEED_Z_MULTIPLIER
+            + VILLAGE_SALT;
         Random random = new Random(regionSeed);
-        int offsetX = random.nextInt(VILLAGE_SPACING);
-        int offsetZ = random.nextInt(VILLAGE_SPACING);
+        int offsetX = random.nextInt(REGION_OFFSET_BOUND);
+        int offsetZ = random.nextInt(REGION_OFFSET_BOUND);
         return new int[] {
-            gridX * GRID_SIZE + offsetX,
-            gridZ * GRID_SIZE + offsetZ
+            gridX * VILLAGE_SPACING + offsetX,
+            gridZ * VILLAGE_SPACING + offsetZ
         };
     }
 

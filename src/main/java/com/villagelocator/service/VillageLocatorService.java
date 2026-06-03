@@ -11,31 +11,50 @@ import java.util.*;
 public class VillageLocatorService {
 
     private final RestTemplate restTemplate = new RestTemplate();
-    private static final String MC_SEED_LOCATOR_URL = "http://localhost:3000/api/structures";
+    private static final String OLELA_API_URL = "https://api.olela.me/v1/structures";
 
     public List<Map<String, Integer>> findVillages(long seed, int centerX, int centerZ, int searchRadius) {
         List<Map<String, Integer>> villages = new ArrayList<>();
         
         try {
-            // Call MC-SeedLocator API to find villages
-            String url = String.format("%s?seed=%d&x=%d&z=%d&radius=%d&type=village", 
-                MC_SEED_LOCATOR_URL, seed, centerX, centerZ, searchRadius);
+            // Call OlelaFinder API to find villages
+            String url = String.format("%s?seed=%d&x=%d&z=%d&type=village&radius=%d", 
+                OLELA_API_URL, seed, centerX, centerZ, searchRadius / 16);
             
             String response = restTemplate.getForObject(url, String.class);
             
-            if (response != null) {
-                JsonArray jsonArray = JsonParser.parseString(response).getAsJsonArray();
+            if (response != null && !response.isEmpty()) {
+                JsonObject jsonResponse = JsonParser.parseString(response).getAsJsonObject();
                 
-                for (int i = 0; i < jsonArray.size(); i++) {
-                    JsonObject village = jsonArray.get(i).getAsJsonObject();
-                    Map<String, Integer> villageMap = new HashMap<>();
-                    villageMap.put("x", village.get("x").getAsInt());
-                    villageMap.put("z", village.get("z").getAsInt());
-                    villages.add(villageMap);
+                // Check if the response contains a structures array
+                if (jsonResponse.has("structures")) {
+                    JsonArray structuresArray = jsonResponse.getAsJsonArray("structures");
+                    
+                    for (int i = 0; i < structuresArray.size(); i++) {
+                        JsonObject structure = structuresArray.get(i).getAsJsonObject();
+                        
+                        // OlelaFinder returns x, z coordinates
+                        if (structure.has("x") && structure.has("z")) {
+                            int villageX = structure.get("x").getAsInt();
+                            int villageZ = structure.get("z").getAsInt();
+                            
+                            // Check distance
+                            int dx = villageX - centerX;
+                            int dz = villageZ - centerZ;
+                            long distSq = (long)dx * dx + (long)dz * dz;
+                            
+                            if (distSq < (long)searchRadius * searchRadius) {
+                                Map<String, Integer> village = new HashMap<>();
+                                village.put("x", villageX);
+                                village.put("z", villageZ);
+                                villages.add(village);
+                            }
+                        }
+                    }
                 }
             }
             
-            // Sort by distance
+            // Sort by distance from center
             final int centerXFinal = centerX;
             final int centerZFinal = centerZ;
             villages.sort((a, b) -> {
@@ -51,7 +70,7 @@ public class VillageLocatorService {
             });
             
         } catch (Exception e) {
-            System.err.println("Error calling MC-SeedLocator: " + e.getMessage());
+            System.err.println("Error calling OlelaFinder API: " + e.getMessage());
             e.printStackTrace();
         }
         

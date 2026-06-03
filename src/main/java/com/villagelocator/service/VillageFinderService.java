@@ -5,127 +5,137 @@ import java.util.*;
 
 @Service
 public class VillageFinderService {
-    
-    // AMIDST Constants for village generation
+
     private static final long VILLAGE_SALT = 10387312L;
-    private static final int VILLAGE_SPACING = 32; // Chunks spacing
-    private static final int VILLAGE_SEPARATION = 8; // Chunk separation
-    private static final int GRID_SIZE = VILLAGE_SPACING + VILLAGE_SEPARATION;
-    
-    // Village well size for biome checking
-    private static final int WELL_X1_OFFSET = 2;
+    private static final int VILLAGE_SPACING = 32;
+    private static final int VILLAGE_SEPARATION = 8;
+    private static final long MAGIC_NUMBER_1 = 341873128712L;
+    private static final long MAGIC_NUMBER_2 = 132897987541L;
+
+    private static final int WELL_OFFSET = 2;
     private static final int WELL_SIZE = 6;
     private static final int ARBITRARY_CONSTANT = 2;
-    
-    /**
-     * Find all villages in a Minecraft world using AMIDST's algorithm
-     * This implements Minecraft's exact village spawning logic from AMIDST
-     */
+
+    private static final Set<String> VALID_VILLAGE_BIOMES = Set.of(
+        "savanna",
+        "plains",
+        "desert",
+        "taiga",
+        "snowy_plains"
+    );
+
+    private final BiomeResolver biomeResolver;
+
+    public VillageFinderService() {
+        this((seed, x, z) -> "plains");
+    }
+
+    VillageFinderService(BiomeResolver biomeResolver) {
+        this.biomeResolver = biomeResolver;
+    }
+
     public List<Map<String, Integer>> findVillages(long seed, int centerX, int centerZ, int radius) {
         List<Map<String, Integer>> villages = new ArrayList<>();
-        Set<String> foundVillages = new HashSet<>();
-        
-        try {
-            // Convert block coordinates to chunk coordinates
-            int centerChunkX = centerX >> 4;
-            int centerChunkZ = centerZ >> 4;
-            int searchRadiusChunks = radius >> 4;
-            
-            // Search for villages in grid pattern (AMIDST algorithm)
-            for (int gx = centerChunkX - searchRadiusChunks; gx <= centerChunkX + searchRadiusChunks; gx++) {
-                for (int gz = centerChunkZ - searchRadiusChunks; gz <= centerChunkZ + searchRadiusChunks; gz++) {
-                    // Check if this chunk is a potential village location using AMIDST's grid
-                    if (isVillageLocation(seed, gx, gz)) {
-                        // Calculate village coordinates
-                        int villageX = gx * 16 + 8; // Center of chunk
-                        int villageZ = gz * 16 + 8; // Center of chunk
-                        
-                        // Avoid duplicates
-                        String key = villageX + "," + villageZ;
-                        if (!foundVillages.contains(key)) {
-                            Map<String, Integer> village = new HashMap<>();
-                            village.put("x", villageX);
-                            village.put("z", villageZ);
-                            villages.add(village);
-                            foundVillages.add(key);
-                        }
-                    }
+
+        int centerChunkX = centerX >> 4;
+        int centerChunkZ = centerZ >> 4;
+        int searchRadiusChunks = (radius + 15) >> 4;
+
+        int minChunkX = centerChunkX - searchRadiusChunks;
+        int maxChunkX = centerChunkX + searchRadiusChunks;
+        int minChunkZ = centerChunkZ - searchRadiusChunks;
+        int maxChunkZ = centerChunkZ + searchRadiusChunks;
+
+        int minRegionX = Math.floorDiv(minChunkX, VILLAGE_SPACING);
+        int maxRegionX = Math.floorDiv(maxChunkX, VILLAGE_SPACING);
+        int minRegionZ = Math.floorDiv(minChunkZ, VILLAGE_SPACING);
+        int maxRegionZ = Math.floorDiv(maxChunkZ, VILLAGE_SPACING);
+
+        for (int regionX = minRegionX; regionX <= maxRegionX; regionX++) {
+            for (int regionZ = minRegionZ; regionZ <= maxRegionZ; regionZ++) {
+                int[] candidate = getCandidateChunkInRegion(seed, regionX, regionZ);
+                int candidateChunkX = candidate[0];
+                int candidateChunkZ = candidate[1];
+
+                if (candidateChunkX >= minChunkX
+                    && candidateChunkX <= maxChunkX
+                    && candidateChunkZ >= minChunkZ
+                    && candidateChunkZ <= maxChunkZ
+                    && isValidVillageLocation(seed, candidateChunkX, candidateChunkZ, centerX, centerZ, radius)) {
+                    Map<String, Integer> village = new HashMap<>();
+                    village.put("x", candidateChunkX * 16 + 8);
+                    village.put("z", candidateChunkZ * 16 + 8);
+                    villages.add(village);
                 }
             }
-            
-            // Sort by distance from center
-            villages.sort((a, b) -> {
-                long distA = Math.round(Math.sqrt(
-                    Math.pow(a.get("x") - centerX, 2) + 
-                    Math.pow(a.get("z") - centerZ, 2)
-                ));
-                long distB = Math.round(Math.sqrt(
-                    Math.pow(b.get("x") - centerX, 2) + 
-                    Math.pow(b.get("z") - centerZ, 2)
-                ));
-                return Long.compare(distA, distB);
-            });
-            
-        } catch (Exception e) {
-            System.err.println("Error finding villages: " + e.getMessage());
-            e.printStackTrace();
         }
-        
+
+        villages.sort(Comparator.comparingLong(v -> distanceSquared(v.get("x"), v.get("z"), centerX, centerZ)));
         return villages;
     }
-    
-    /**
-     * Check if this chunk location should have a village
-     * Uses AMIDST's RegionalStructureProducer algorithm
-     */
-    private boolean isVillageLocation(long seed, int chunkX, int chunkZ) {
-        // AMIDST algorithm: villages are in a grid with specific spacing/separation
-        // First, determine if chunk is in the village grid
-        
-        int gridX = Math.floorDiv(chunkX, GRID_SIZE);
-        int gridZ = Math.floorDiv(chunkZ, GRID_SIZE);
-        
-        int inGridX = Math.floorMod(chunkX, GRID_SIZE);
-        int inGridZ = Math.floorMod(chunkZ, GRID_SIZE);
-        
-        // Villages only spawn in the first VILLAGE_SPACING chunks of each grid
-        if (inGridX >= VILLAGE_SPACING || inGridZ >= VILLAGE_SPACING) {
+
+    private int[] getCandidateChunkInRegion(long worldSeed, int regionX, int regionZ) {
+        Random random = new Random(getRegionSeed(worldSeed, regionX, regionZ));
+        int offsetX = random.nextInt(VILLAGE_SPACING - VILLAGE_SEPARATION);
+        int offsetZ = random.nextInt(VILLAGE_SPACING - VILLAGE_SEPARATION);
+        return new int[] {
+            regionX * VILLAGE_SPACING + offsetX,
+            regionZ * VILLAGE_SPACING + offsetZ
+        };
+    }
+
+    private long getRegionSeed(long worldSeed, int regionX, int regionZ) {
+        return (long) regionX * MAGIC_NUMBER_1 + (long) regionZ * MAGIC_NUMBER_2 + worldSeed + VILLAGE_SALT;
+    }
+
+    private boolean isValidVillageLocation(long seed, int chunkX, int chunkZ, int centerX, int centerZ, int radius) {
+        int villageX = chunkX * 16 + 8;
+        int villageZ = chunkZ * 16 + 8;
+        if (distanceSquared(villageX, villageZ, centerX, centerZ) > (long) radius * radius) {
             return false;
         }
-        
-        // Use RandomSource to determine exact village position in grid cell
-        Random random = createRandomForGridCell(seed, gridX, gridZ);
-        
-        // Random offset within the grid cell
-        int offsetX = random.nextInt(VILLAGE_SPACING);
-        int offsetZ = random.nextInt(VILLAGE_SPACING);
-        
-        // Check if this chunk matches the random offset
-        return (inGridX == offsetX && inGridZ == offsetZ);
+        return isValidBiomeForStructure(seed, villageX, villageZ, 0) && isValidWellLocation(seed, chunkX, chunkZ);
     }
-    
-    /**
-     * Create Random instance for a grid cell using AMIDST's seeding
-     * Formula: XOR world seed with grid coordinates and SALT
-     */
-    private Random createRandomForGridCell(long worldSeed, int gridX, int gridZ) {
-        long regionSeed = worldSeed;
-        regionSeed ^= (long) gridX * VILLAGE_SALT;
-        regionSeed ^= (long) gridZ * VILLAGE_SALT;
-        return new Random(regionSeed);
+
+    private boolean isValidWellLocation(long seed, int chunkX, int chunkZ) {
+        int x1 = chunkX * 16 + WELL_OFFSET;
+        int z1 = chunkZ * 16 + WELL_OFFSET;
+        int x2 = x1 + WELL_SIZE - 1;
+        int z2 = z1 + WELL_SIZE - 1;
+
+        int wellX = (x1 + x2) / 2;
+        int wellZ = (z1 + z2) / 2;
+        int wellStructureSize = (x2 - x1) / 2 + ARBITRARY_CONSTANT;
+
+        return isValidBiomeForStructure(seed, wellX, wellZ, wellStructureSize);
     }
-    
-    /**
-     * Validate village location using well biome checking (from AMIDST VillageAlgorithm)
-     * This ensures the village has valid biome for the well structure
-     */
-    private boolean isValidWellLocation(int chunkX, int chunkZ) {
-        // The well in villages is 6x6, starting at chunk offset +2
-        // For simplicity, we'll consider all villages valid since we don't have biome data
-        // In a full implementation, this would check biomes at:
-        // int wellX = chunkX * 16 + WELL_X1_OFFSET + (WELL_SIZE / 2);
-        // int wellZ = chunkZ * 16 + WELL_X1_OFFSET + (WELL_SIZE / 2);
-        
-        return true; // Placeholder - would validate against valid biomes
+
+    private boolean isValidBiomeForStructure(long seed, int centerX, int centerZ, int structureSize) {
+        int minX = centerX - structureSize * 4;
+        int maxX = centerX + structureSize * 4;
+        int minZ = centerZ - structureSize * 4;
+        int maxZ = centerZ + structureSize * 4;
+
+        for (int x = minX; x <= maxX; x += 4) {
+            for (int z = minZ; z <= maxZ; z += 4) {
+                String biome = biomeResolver.resolve(seed, x, z);
+                if (biome == null || !VALID_VILLAGE_BIOMES.contains(biome.toLowerCase(Locale.ROOT))) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private long distanceSquared(int x1, int z1, int x2, int z2) {
+        long dx = (long) x1 - x2;
+        long dz = (long) z1 - z2;
+        return dx * dx + dz * dz;
+    }
+
+    @FunctionalInterface
+    interface BiomeResolver {
+        String resolve(long seed, int blockX, int blockZ);
     }
 }

@@ -10,17 +10,8 @@ import static org.junit.jupiter.api.Assertions.*;
 class VillageFinderServiceTest {
 
     @Test
-    void findVillagesReturnsNothingWhenBiomeIsAlwaysInvalid() {
-        VillageFinderService service = new VillageFinderService((seed, x, z) -> "ocean");
-
-        List<Map<String, Integer>> villages = service.findVillages(12345L, 0, 0, 2000);
-
-        assertTrue(villages.isEmpty());
-    }
-
-    @Test
-    void findVillagesReturnsDistanceSortedResultsForValidBiomes() {
-        VillageFinderService service = new VillageFinderService((seed, x, z) -> "plains");
+    void findVillagesReturnsDistanceSortedResults() {
+        VillageFinderService service = new VillageFinderService();
 
         List<Map<String, Integer>> villages = service.findVillages(12345L, 0, 0, 4000);
 

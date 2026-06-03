@@ -11,22 +11,7 @@ public class VillageFinderService {
     private static final int VILLAGE_SEPARATION = 8;
     private static final int GRID_SIZE = VILLAGE_SPACING + VILLAGE_SEPARATION;
 
-    private static final Set<String> VALID_VILLAGE_BIOMES = Set.of(
-        "savanna",
-        "plains",
-        "desert",
-        "taiga",
-        "snowy_plains"
-    );
-
-    private final BiomeResolver biomeResolver;
-
     public VillageFinderService() {
-        this((seed, x, z) -> "plains");
-    }
-
-    VillageFinderService(BiomeResolver biomeResolver) {
-        this.biomeResolver = biomeResolver;
     }
 
     public List<Map<String, Integer>> findVillages(long seed, int centerX, int centerZ, int radius) {
@@ -85,27 +70,12 @@ public class VillageFinderService {
     private boolean isValidVillageLocation(long seed, int chunkX, int chunkZ, int centerX, int centerZ, int radius) {
         int villageX = chunkX * 16 + 8;
         int villageZ = chunkZ * 16 + 8;
-        if (distanceSquared(villageX, villageZ, centerX, centerZ) > (long) radius * radius) {
-            return false;
-        }
-        return isValidBiomeForStructure(seed, chunkX, chunkZ);
-    }
-
-    private boolean isValidBiomeForStructure(long seed, int chunkX, int chunkZ) {
-        int blockX = chunkX * 16 + 8;
-        int blockZ = chunkZ * 16 + 8;
-        String biome = biomeResolver.resolve(seed, blockX, blockZ);
-        return biome != null && VALID_VILLAGE_BIOMES.contains(biome.toLowerCase(Locale.ROOT));
+        return distanceSquared(villageX, villageZ, centerX, centerZ) <= (long) radius * radius;
     }
 
     private long distanceSquared(int x1, int z1, int x2, int z2) {
         long dx = (long) x1 - x2;
         long dz = (long) z1 - z2;
         return dx * dx + dz * dz;
-    }
-
-    @FunctionalInterface
-    interface BiomeResolver {
-        String resolve(long seed, int blockX, int blockZ);
     }
 }

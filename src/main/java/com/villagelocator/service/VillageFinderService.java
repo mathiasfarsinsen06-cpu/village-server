@@ -9,12 +9,7 @@ public class VillageFinderService {
     private static final long VILLAGE_SALT = 10387312L;
     private static final int VILLAGE_SPACING = 32;
     private static final int VILLAGE_SEPARATION = 8;
-    private static final long MAGIC_NUMBER_1 = 341873128712L;
-    private static final long MAGIC_NUMBER_2 = 132897987541L;
-
-    private static final int WELL_OFFSET = 2;
-    private static final int WELL_SIZE = 6;
-    private static final int ARBITRARY_CONSTANT = 2;
+    private static final int GRID_SIZE = VILLAGE_SPACING + VILLAGE_SEPARATION;
 
     private static final Set<String> VALID_VILLAGE_BIOMES = Set.of(
         "savanna",
@@ -46,14 +41,14 @@ public class VillageFinderService {
         int minChunkZ = centerChunkZ - searchRadiusChunks;
         int maxChunkZ = centerChunkZ + searchRadiusChunks;
 
-        int minRegionX = Math.floorDiv(minChunkX, VILLAGE_SPACING);
-        int maxRegionX = Math.floorDiv(maxChunkX, VILLAGE_SPACING);
-        int minRegionZ = Math.floorDiv(minChunkZ, VILLAGE_SPACING);
-        int maxRegionZ = Math.floorDiv(maxChunkZ, VILLAGE_SPACING);
+        int minGridX = Math.floorDiv(minChunkX, GRID_SIZE);
+        int maxGridX = Math.floorDiv(maxChunkX, GRID_SIZE);
+        int minGridZ = Math.floorDiv(minChunkZ, GRID_SIZE);
+        int maxGridZ = Math.floorDiv(maxChunkZ, GRID_SIZE);
 
-        for (int regionX = minRegionX; regionX <= maxRegionX; regionX++) {
-            for (int regionZ = minRegionZ; regionZ <= maxRegionZ; regionZ++) {
-                int[] candidate = getCandidateChunkInRegion(seed, regionX, regionZ);
+        for (int gridX = minGridX; gridX <= maxGridX; gridX++) {
+            for (int gridZ = minGridZ; gridZ <= maxGridZ; gridZ++) {
+                int[] candidate = getCandidateChunkInRegion(seed, gridX, gridZ);
                 int candidateChunkX = candidate[0];
                 int candidateChunkZ = candidate[1];
 
@@ -74,18 +69,17 @@ public class VillageFinderService {
         return villages;
     }
 
-    private int[] getCandidateChunkInRegion(long worldSeed, int regionX, int regionZ) {
-        Random random = new Random(getRegionSeed(worldSeed, regionX, regionZ));
-        int offsetX = random.nextInt(VILLAGE_SPACING - VILLAGE_SEPARATION);
-        int offsetZ = random.nextInt(VILLAGE_SPACING - VILLAGE_SEPARATION);
+    private int[] getCandidateChunkInRegion(long worldSeed, int gridX, int gridZ) {
+        long regionSeed = worldSeed;
+        regionSeed ^= (long) gridX * VILLAGE_SALT;
+        regionSeed ^= (long) gridZ * VILLAGE_SALT;
+        Random random = new Random(regionSeed);
+        int offsetX = random.nextInt(VILLAGE_SPACING);
+        int offsetZ = random.nextInt(VILLAGE_SPACING);
         return new int[] {
-            regionX * VILLAGE_SPACING + offsetX,
-            regionZ * VILLAGE_SPACING + offsetZ
+            gridX * GRID_SIZE + offsetX,
+            gridZ * GRID_SIZE + offsetZ
         };
-    }
-
-    private long getRegionSeed(long worldSeed, int regionX, int regionZ) {
-        return (long) regionX * MAGIC_NUMBER_1 + (long) regionZ * MAGIC_NUMBER_2 + worldSeed + VILLAGE_SALT;
     }
 
     private boolean isValidVillageLocation(long seed, int chunkX, int chunkZ, int centerX, int centerZ, int radius) {
@@ -94,38 +88,14 @@ public class VillageFinderService {
         if (distanceSquared(villageX, villageZ, centerX, centerZ) > (long) radius * radius) {
             return false;
         }
-        return isValidBiomeForStructure(seed, villageX, villageZ, 0) && isValidWellLocation(seed, chunkX, chunkZ);
+        return isValidBiomeForStructure(seed, chunkX, chunkZ);
     }
 
-    private boolean isValidWellLocation(long seed, int chunkX, int chunkZ) {
-        int x1 = chunkX * 16 + WELL_OFFSET;
-        int z1 = chunkZ * 16 + WELL_OFFSET;
-        int x2 = x1 + WELL_SIZE - 1;
-        int z2 = z1 + WELL_SIZE - 1;
-
-        int wellX = (x1 + x2) / 2;
-        int wellZ = (z1 + z2) / 2;
-        int wellStructureSize = (x2 - x1) / 2 + ARBITRARY_CONSTANT;
-
-        return isValidBiomeForStructure(seed, wellX, wellZ, wellStructureSize);
-    }
-
-    private boolean isValidBiomeForStructure(long seed, int centerX, int centerZ, int structureSize) {
-        int minX = centerX - structureSize * 4;
-        int maxX = centerX + structureSize * 4;
-        int minZ = centerZ - structureSize * 4;
-        int maxZ = centerZ + structureSize * 4;
-
-        for (int x = minX; x <= maxX; x += 4) {
-            for (int z = minZ; z <= maxZ; z += 4) {
-                String biome = biomeResolver.resolve(seed, x, z);
-                if (biome == null || !VALID_VILLAGE_BIOMES.contains(biome.toLowerCase(Locale.ROOT))) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
+    private boolean isValidBiomeForStructure(long seed, int chunkX, int chunkZ) {
+        int blockX = chunkX * 16 + 8;
+        int blockZ = chunkZ * 16 + 8;
+        String biome = biomeResolver.resolve(seed, blockX, blockZ);
+        return biome != null && VALID_VILLAGE_BIOMES.contains(biome.toLowerCase(Locale.ROOT));
     }
 
     private long distanceSquared(int x1, int z1, int x2, int z2) {

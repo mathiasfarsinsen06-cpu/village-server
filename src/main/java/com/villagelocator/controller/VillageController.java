@@ -1,4 +1,4 @@
-package com.mathiasfar.villagelocator.controller;
+package com.villagelocator.controller;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;

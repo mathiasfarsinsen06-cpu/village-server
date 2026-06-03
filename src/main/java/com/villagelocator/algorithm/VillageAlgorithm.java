@@ -21,6 +21,7 @@ import java.util.Set;
  *   <li>desert</li>
  *   <li>taiga</li>
  *   <li>snowy_plains</li>
+ *   <li>cherry_grove (added in 1.21)</li>
  * </ul>
  * </p>
  */
@@ -32,7 +33,8 @@ public class VillageAlgorithm {
             "savanna",
             "desert",
             "taiga",
-            "snowy_plains"
+            "snowy_plains",
+            "cherry_grove"
     );
 
     private final BiomeDataOracle biomeDataOracle;

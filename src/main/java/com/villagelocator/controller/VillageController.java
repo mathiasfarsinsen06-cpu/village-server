@@ -13,6 +13,29 @@ public class VillageController {
     private VillageLocatorService villageLocatorService;
 
     /**
+     * Find villages - direct endpoint (GET /api/villages?seed=XXX)
+     */
+    @GetMapping
+    public Object findVillagesDefault(
+            @RequestParam(required = false) Long seed,
+            @RequestParam(required = false) Integer x,
+            @RequestParam(required = false) Integer z,
+            @RequestParam(defaultValue = "10000") int radius) {
+        
+        // If seed is provided, return villages array directly
+        if (seed != null) {
+            int centerX = x != null ? x : 0;
+            int centerZ = z != null ? z : 0;
+            
+            List<Map<String, Integer>> villages = villageLocatorService.findVillages(seed, centerX, centerZ, radius);
+            return villages; // Return array directly, not wrapped object
+        }
+        
+        // Otherwise return error
+        return Map.of("error", "seed parameter required");
+    }
+
+    /**
      * Find villages from seed and location
      * @param seed World seed
      * @param x Center X coordinate

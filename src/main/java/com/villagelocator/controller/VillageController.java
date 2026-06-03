@@ -2,14 +2,20 @@ package com.villagelocator.controller;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
-import com.google.gson.Gson;
+import org.springframework.beans.factory.annotation.Autowired;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.villagelocator.service.VillageLocatorService;
+import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/villages")
 @CrossOrigin(origins = "*")
 public class VillageController {
+    
+    @Autowired
+    private VillageLocatorService villageLocatorService;
     
     @GetMapping("/health")
     public ResponseEntity<?> health() {
@@ -21,23 +27,19 @@ public class VillageController {
     @GetMapping
     public ResponseEntity<?> getVillagesBySeed(@RequestParam long seed) {
         try {
-            // Her skal du implementere village-finding algoritmen
-            // For nu returnerer vi et simpelt svar
+            // Use the actual VillageLocatorService to find villages
+            List<Map<String, Integer>> villages = villageLocatorService.findVillages(seed, 0, 0, 5000);
             
-            JsonArray villages = new JsonArray();
+            JsonArray jsonArray = new JsonArray();
             
-            // Eksempel villages
-            JsonObject village1 = new JsonObject();
-            village1.addProperty("x", 100);
-            village1.addProperty("z", 200);
-            villages.add(village1);
+            for (Map<String, Integer> village : villages) {
+                JsonObject jsonVillage = new JsonObject();
+                jsonVillage.addProperty("x", village.get("x"));
+                jsonVillage.addProperty("z", village.get("z"));
+                jsonArray.add(jsonVillage);
+            }
             
-            JsonObject village2 = new JsonObject();
-            village2.addProperty("x", 300);
-            village2.addProperty("z", 400);
-            villages.add(village2);
-            
-            return ResponseEntity.ok(villages.toString());
+            return ResponseEntity.ok(jsonArray.toString());
         } catch (Exception e) {
             return ResponseEntity.status(500).body("{\"error\":\"" + e.getMessage() + "\"}");
         }

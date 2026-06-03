@@ -1,6 +1,7 @@
 package com.villagelocator.algorithm;
 
 import com.villagelocator.biome.BiomeDataOracle;
+import com.villagelocator.biome.MinecraftBiomeRegistry;
 
 import java.util.Set;
 
@@ -28,14 +29,7 @@ import java.util.Set;
 public class VillageAlgorithm {
 
     /** Minecraft resource-location names for biomes that support villages. */
-    public static final Set<String> VALID_VILLAGE_BIOMES = Set.of(
-            "plains",
-            "savanna",
-            "desert",
-            "taiga",
-            "snowy_plains",
-            "cherry_grove"
-    );
+    public static final Set<String> VALID_VILLAGE_BIOMES = MinecraftBiomeRegistry.VALID_VILLAGE_BIOMES;
 
     private final BiomeDataOracle biomeDataOracle;
     private final Set<String> validBiomes;

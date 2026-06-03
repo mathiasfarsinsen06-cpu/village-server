@@ -61,7 +61,7 @@ public class MinecraftBiomeOracle implements BiomeDataOracle {
         double continentalness = sampleNoise(continentalnessSeed, x / CONTINENT_SCALE, z / CONTINENT_SCALE);
         double temperature     = sampleNoise(temperatureSeed,     x / BIOME_SCALE,     z / BIOME_SCALE);
         double humidity        = sampleNoise(humiditySeed,        x / BIOME_SCALE,     z / BIOME_SCALE);
-        return classifyBiome(continentalness, temperature, humidity);
+        return MinecraftBiomeRegistry.normalizeBiomeName(classifyBiome(continentalness, temperature, humidity));
     }
 
     @Override

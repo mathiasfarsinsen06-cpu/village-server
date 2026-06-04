@@ -55,6 +55,16 @@ public class VillageAlgorithm {
         int villageChunkX = (regionX << 5) + offsetX;
         int villageChunkZ = (regionZ << 5) + offsetZ;
         
+        // DEBUG
+        boolean match = (chunkX == villageChunkX && chunkZ == villageChunkZ);
+        if (chunkX >= -251 && chunkX <= -249) {
+            System.out.println("[DEBUG] seed=" + seed + " chunkX=" + chunkX + " chunkZ=" + chunkZ + 
+                             " regionX=" + regionX + " regionZ=" + regionZ + 
+                             " offsetX=" + offsetX + " offsetZ=" + offsetZ +
+                             " villageChunkX=" + villageChunkX + " villageChunkZ=" + villageChunkZ +
+                             " match=" + match);
+        }
+        
         // Only consider villages at their seed-determined chunk position
         if (chunkX != villageChunkX || chunkZ != villageChunkZ) {
             return false;

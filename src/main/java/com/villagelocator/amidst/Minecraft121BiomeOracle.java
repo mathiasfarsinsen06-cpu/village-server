@@ -55,8 +55,8 @@ public class Minecraft121BiomeOracle implements BiomeDataOracle {
         hash = mix64(hash);
         
         // Map hash to biome based on distribution
-        // Use proper positive modulo to avoid negative indices
-        int biomeIndex = ((int) (hash >>> 1)) % VILLAGE_BIOMES.length;
+        // Use Math.floorMod to ensure positive result
+        int biomeIndex = Math.floorMod((int) hash, VILLAGE_BIOMES.length);
         
         // Add some spatial coherence
         long spatialHash = 0;
@@ -64,13 +64,14 @@ public class Minecraft121BiomeOracle implements BiomeDataOracle {
         spatialHash ^= mix64(z >> 4);
         spatialHash = mix64(spatialHash ^ seed);
         
-        // Use proper positive modulo to avoid negative indices
-        int spatialIndex = ((int) (spatialHash >>> 1)) % VILLAGE_BIOMES.length;
+        // Use Math.floorMod to ensure positive result
+        int spatialIndex = Math.floorMod((int) spatialHash, VILLAGE_BIOMES.length);
         
         // Weight towards plains (most common village biome)
-        if ((Math.abs(hash) % 100) < 40) {
+        long absHash = Math.abs(hash);
+        if ((absHash % 100) < 40) {
             return "plains";
-        } else if ((Math.abs(hash) % 100) < 60) {
+        } else if ((absHash % 100) < 60) {
             return VILLAGE_BIOMES[biomeIndex];
         } else {
             return VILLAGE_BIOMES[spatialIndex];

@@ -62,6 +62,8 @@ public class VillageStructureFinder {
     /**
      * Find village in a single 34x34 chunk region.
      * Minecraft uses a seeded random to determine if village spawns and its exact position.
+     * 
+     * Villages spawn with approximately 10% chance per region (varies by biome).
      */
     private VillageChunk findVillageInRegion(long worldSeed, int regionX, int regionZ) {
         // Create region seed by mixing world seed with region coordinates
@@ -73,10 +75,11 @@ public class VillageStructureFinder {
         JavaRandom rng = new JavaRandom(regionSeed);
         
         // Minecraft checks if village should spawn in this region
-        // Villages have ~40% spawn chance per region in valid biomes
-        int spawnChance = rng.nextInt(100);
+        // Villages have ~10% spawn chance per region in valid biomes
+        // Use nextFloat for more precision (Minecraft uses this)
+        double spawnChance = rng.nextDouble();
         
-        if (spawnChance >= 40) {
+        if (spawnChance > 0.10) {  // Only 10% chance to spawn
             return null; // No village in this region
         }
         
@@ -88,7 +91,7 @@ public class VillageStructureFinder {
         int chunkZ = regionZ * SPACING + offsetZ;
         
         System.out.println("[REGION CHECK] Region(" + regionX + "," + regionZ + 
-                         ") spawn=" + spawnChance + "% offset=(" + offsetX + "," + offsetZ + ")");
+                         ") spawn=" + String.format("%.1f%%", spawnChance * 100) + " offset=(" + offsetX + "," + offsetZ + ")");
         
         return new VillageChunk(chunkX, chunkZ);
     }

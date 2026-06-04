@@ -27,27 +27,23 @@ public class VillageFinderService {
     
     /**
      * Find all valid villages in a region for the given seed.
+     * Must check all chunks to find seed-dependent village spawn locations.
      */
     public List<VillageLocation> findVillages(long seed, int minChunkX, int maxChunkX, 
                                                int minChunkZ, int maxChunkZ) {
         List<VillageLocation> villages = new ArrayList<>();
         
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX += 32) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ += 32) {
-                for (int offsetX = 0; offsetX < 32; offsetX++) {
-                    for (int offsetZ = 0; offsetZ < 32; offsetZ++) {
-                        int testChunkX = chunkX + offsetX;
-                        int testChunkZ = chunkZ + offsetZ;
-                        
-                        if (villageAlgorithm.isValidLocation(seed, testChunkX, testChunkZ)) {
-                            villages.add(new VillageLocation(
-                                testChunkX * 16 + 8,
-                                testChunkZ * 16 + 8,
-                                testChunkX,
-                                testChunkZ
-                            ));
-                        }
-                    }
+        // Villages spawn in a grid pattern. We need to check every chunk
+        // to find the seed-dependent spawn locations within each 32x32 region.
+        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
+            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
+                if (villageAlgorithm.isValidLocation(seed, chunkX, chunkZ)) {
+                    villages.add(new VillageLocation(
+                        chunkX * 16 + 8,
+                        chunkZ * 16 + 8,
+                        chunkX,
+                        chunkZ
+                    ));
                 }
             }
         }

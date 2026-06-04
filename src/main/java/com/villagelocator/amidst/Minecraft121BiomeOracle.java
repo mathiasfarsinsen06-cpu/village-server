@@ -44,19 +44,18 @@ public class Minecraft121BiomeOracle implements BiomeDataOracle {
 
     @Override
     public String getBiomeAt(long seed, int x, int z) {
-        // Use full 64-bit seed with coordinates to generate deterministic biome
-        // This ensures different seeds ALWAYS produce different results
+        // DEBUG: Log seed and coordinates
+        if (x == 0 && z == 0) {
+            System.out.println("[DEBUG] getBiomeAt called: seed=" + seed + ", x=" + x + ", z=" + z);
+        }
         
-        // Create hash using all 64 bits of seed
+        // Use full 64-bit seed with coordinates to generate deterministic biome
         long hash = mix64(seed);
         hash ^= mix64((long) x);
         hash ^= mix64((long) z);
         hash = mix64(hash);
         
-        // Use absolute value to ensure positive modulo
         long absHash = Math.abs(hash);
-        
-        // Primary biome selection using lower bits
         int primaryIndex = (int) (absHash % VILLAGE_BIOMES.length);
         String primaryBiome = VILLAGE_BIOMES[primaryIndex];
         
@@ -71,22 +70,25 @@ public class Minecraft121BiomeOracle implements BiomeDataOracle {
         long absChunkHash = Math.abs(chunkSeed);
         int probability = (int) (absChunkHash % 100);
         
-        // Bias towards plains (most common village biome)
+        String result;
         if (probability < 45) {
-            return "plains";
+            result = "plains";
         } else if (probability < 70) {
-            return primaryBiome;
+            result = primaryBiome;
         } else {
-            // Secondary biome selection using upper bits
             int secondaryIndex = (int) ((absChunkHash >> 32) % VILLAGE_BIOMES.length);
-            return VILLAGE_BIOMES[secondaryIndex];
+            result = VILLAGE_BIOMES[secondaryIndex];
         }
+        
+        if (x == 0 && z == 0) {
+            System.out.println("[DEBUG] Result: " + result + ", probability=" + probability + ", hash=" + hash);
+        }
+        
+        return result;
     }
     
     /**
      * Mix function for better hash distribution.
-     * Based on MurmurHash3 mixing function.
-     * Ensures all 64 bits influence the output.
      */
     private static long mix64(long x) {
         x ^= x >>> 33;

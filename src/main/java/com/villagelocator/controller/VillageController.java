@@ -3,108 +3,80 @@ package com.villagelocator.controller;
 import com.villagelocator.service.VillageFinderService;
 import com.villagelocator.service.VillageFinderService.VillageLocation;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashMap;
 import java.util.List;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
- * REST API for village finding with AMIDST v4.7 validation.
+ * REST API for finding villages by seed.
+ * Endpoint: GET /api/villages?seed=SEED&x=X&z=Z&radius=RADIUS
  */
 @RestController
 @RequestMapping("/api/villages")
+@CrossOrigin(origins = "*")
 public class VillageController {
     
     @Autowired
     private VillageFinderService villageFinderService;
     
     /**
-     * Find villages by seed only (for MOD integration).
-     * Searches a large region around origin.
+     * Find villages near a coordinate for a given seed.
+     * 
+     * Query parameters:
+     * - seed: long (required) - Minecraft world seed
+     * - x: int (required) - center X coordinate in blocks
+     * - z: int (required) - center Z coordinate in blocks
+     * - radius: int (optional, default=1000) - search radius in chunks
+     * 
+     * Example: GET /api/villages?seed=5975010353295290926&x=-8729&z=-21647&radius=100
      */
-    @GetMapping("")
-    public ResponseEntity<?> findVillagesBySeededOnly(@RequestParam long seed) {
+    @GetMapping
+    public Map<String, Object> findVillages(
+            @RequestParam(value = "seed") long seed,
+            @RequestParam(value = "x") int x,
+            @RequestParam(value = "z") int z,
+            @RequestParam(value = "radius", defaultValue = "1000") int radiusChunks) {
         
-        // Search a 500x500 chunk region (large world)
-        List<VillageLocation> villages = villageFinderService.findVillages(
-            seed, 
-            -250,   // minChunkX
-            250,    // maxChunkX
-            -250,   // minChunkZ
-            250     // maxChunkZ
-        );
+        System.out.println("[API] Finding villages - seed=" + seed + " x=" + x + " z=" + z + 
+                         " radius=" + radiusChunks + " chunks");
         
-        Map<String, Object> response = new HashMap<>();
-        response.put("seed", seed);
-        response.put("villageCount", villages.size());
-        response.put("villages", villages);
-        response.put("algorithm", "AMIDST v4.7 adapted for Minecraft 1.21.4");
-        
-        return ResponseEntity.ok(response);
-    }
-    
-    /**
-     * Find villages in a region.
-     */
-    @GetMapping("/search")
-    public ResponseEntity<?> searchVillages(
-            @RequestParam long seed,
-            @RequestParam int minChunkX,
-            @RequestParam int maxChunkX,
-            @RequestParam int minChunkZ,
-            @RequestParam int maxChunkZ) {
-        
-        List<VillageLocation> villages = villageFinderService.findVillages(seed, minChunkX, maxChunkX, minChunkZ, maxChunkZ);
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("seed", seed);
-        response.put("region", Map.of(
-            "minChunkX", minChunkX,
-            "maxChunkX", maxChunkX,
-            "minChunkZ", minChunkZ,
-            "maxChunkZ", maxChunkZ
-        ));
-        response.put("villageCount", villages.size());
-        response.put("villages", villages);
-        response.put("algorithm", "AMIDST v4.7 adapted for Minecraft 1.21.4");
-        
-        return ResponseEntity.ok(response);
-    }
-    
-    /**
-     * Find villages near a specific coordinate.
-     */
-    @GetMapping("/near")
-    public ResponseEntity<?> findNear(
-            @RequestParam long seed,
-            @RequestParam int centerX,
-            @RequestParam int centerZ,
-            @RequestParam(defaultValue = "100") int radiusChunks) {
-        
-        List<VillageLocation> villages = villageFinderService.findVillagesNear(seed, centerX, centerZ, radiusChunks);
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("seed", seed);
-        response.put("center", Map.of("x", centerX, "z", centerZ));
-        response.put("radiusChunks", radiusChunks);
-        response.put("villageCount", villages.size());
-        response.put("villages", villages);
-        response.put("algorithm", "AMIDST v4.7 adapted for Minecraft 1.21.4");
-        
-        return ResponseEntity.ok(response);
+        try {
+            List<VillageLocation> villages = villageFinderService.findVillagesNear(seed, x, z, radiusChunks);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("seed", seed);
+            response.put("centerX", x);
+            response.put("centerZ", z);
+            response.put("radiusChunks", radiusChunks);
+            response.put("villageCount", villages.size());
+            response.put("villages", villages);
+            
+            System.out.println("[API] SUCCESS - Found " + villages.size() + " villages");
+            return response;
+            
+        } catch (Exception e) {
+            System.err.println("[API] ERROR: " + e.getMessage());
+            e.printStackTrace();
+            
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("error", e.getMessage());
+            return errorResponse;
+        }
     }
     
     /**
      * Health check endpoint.
      */
     @GetMapping("/health")
-    public ResponseEntity<?> health() {
+    public Map<String, String> health() {
         Map<String, String> response = new HashMap<>();
-        response.put("status", "ok");
-        response.put("version", "1.0.0");
-        response.put("algorithm", "AMIDST v4.7 + Minecraft 1.21.4");
-        return ResponseEntity.ok(response);
+        response.put("status", "OK");
+        response.put("service", "Village Locator");
+        response.put("version", "1.0");
+        return response;
     }
 }

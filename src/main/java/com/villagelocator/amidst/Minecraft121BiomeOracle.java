@@ -1,11 +1,10 @@
 package com.villagelocator.amidst;
 
 import java.util.List;
-import java.util.Random;
 
 /**
  * Minecraft 1.21.4 biome detection implementation.
- * Uses pseudo-random biome generation based on seed and coordinates.
+ * Uses seed-based deterministic biome generation.
  */
 public class Minecraft121BiomeOracle implements BiomeDataOracle {
     
@@ -46,35 +45,40 @@ public class Minecraft121BiomeOracle implements BiomeDataOracle {
     @Override
     public String getBiomeAt(long seed, int x, int z) {
         // Minecraft 1.21.4 uses a noise-based biome generation
-        // Simplified version using seed-based deterministic selection
+        // Use seed as PRIMARY driver to ensure different seeds produce different results
         
-        long hash = 0;
-        hash = mix64(seed);
-        hash ^= mix64(x);
-        hash ^= mix64(z);
+        // Create deterministic random based on seed
+        long worldSeed = seed;
+        
+        // Hash the position with the seed
+        long hash = worldSeed;
+        hash = hash * 31 + x;
+        hash = hash * 31 + z;
         hash = mix64(hash);
         
-        // Map hash to biome based on distribution
-        // Use Math.floorMod to ensure positive result
+        // Get primary biome from hash
         int biomeIndex = Math.floorMod((int) hash, VILLAGE_BIOMES.length);
+        String primaryBiome = VILLAGE_BIOMES[biomeIndex];
         
-        // Add some spatial coherence
-        long spatialHash = 0;
-        spatialHash ^= mix64(x >> 4);
-        spatialHash ^= mix64(z >> 4);
-        spatialHash = mix64(spatialHash ^ seed);
+        // Add secondary layer for spatial coherence
+        long chunkSeed = worldSeed;
+        int chunkX = x >> 4;
+        int chunkZ = z >> 4;
+        chunkSeed = chunkSeed * 31 + chunkX;
+        chunkSeed = chunkSeed * 31 + chunkZ;
+        chunkSeed = mix64(chunkSeed);
         
-        // Use Math.floorMod to ensure positive result
-        int spatialIndex = Math.floorMod((int) spatialHash, VILLAGE_BIOMES.length);
+        // Bias towards plains (most common village biome)
+        int probability = Math.floorMod((int) chunkSeed, 100);
         
-        // Weight towards plains (most common village biome)
-        long absHash = Math.abs(hash);
-        if ((absHash % 100) < 40) {
+        if (probability < 45) {
             return "plains";
-        } else if ((absHash % 100) < 60) {
-            return VILLAGE_BIOMES[biomeIndex];
+        } else if (probability < 70) {
+            return primaryBiome;
         } else {
-            return VILLAGE_BIOMES[spatialIndex];
+            // Secondary biome selection
+            int secondaryIndex = Math.floorMod((int) (chunkSeed >> 32), VILLAGE_BIOMES.length);
+            return VILLAGE_BIOMES[secondaryIndex];
         }
     }
     

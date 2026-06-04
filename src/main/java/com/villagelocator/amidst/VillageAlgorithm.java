@@ -13,6 +13,8 @@ import java.util.List;
 public class VillageAlgorithm {
     private final BiomeDataOracle biomeDataOracle;
     private final List<String> validBiomes;
+    private static int checkCount = 0;
+    private static long lastSeed = 0;
 
     public VillageAlgorithm(BiomeDataOracle biomeDataOracle, List<String> validBiomes) {
         this.biomeDataOracle = biomeDataOracle;
@@ -36,6 +38,16 @@ public class VillageAlgorithm {
             return false;
         }
 
+        // Reset check count for new seed
+        if (seed != lastSeed) {
+            if (lastSeed != 0) {
+                System.out.println("[SEED COMPLETE] seed=" + lastSeed + " checked " + checkCount + " chunks");
+            }
+            checkCount = 0;
+            lastSeed = seed;
+        }
+        checkCount++;
+
         // Villages attempt to spawn in a grid of 32x32 chunk regions
         // The exact spawn point within the region depends on the seed
         int regionX = chunkX >> 5;  // Divide by 32
@@ -55,20 +67,21 @@ public class VillageAlgorithm {
         int villageChunkX = (regionX << 5) + offsetX;
         int villageChunkZ = (regionZ << 5) + offsetZ;
         
-        // DEBUG
-        boolean match = (chunkX == villageChunkX && chunkZ == villageChunkZ);
-        if (chunkX >= -251 && chunkX <= -249) {
-            System.out.println("[DEBUG] seed=" + seed + " chunkX=" + chunkX + " chunkZ=" + chunkZ + 
-                             " regionX=" + regionX + " regionZ=" + regionZ + 
+        // DEBUG - Log EVERY check to see calculation
+        if (checkCount <= 10 || (chunkX == villageChunkX && chunkZ == villageChunkZ)) {
+            System.out.println("[CHECK " + checkCount + "] seed=" + seed + " regionX=" + regionX + " regionZ=" + regionZ + 
                              " offsetX=" + offsetX + " offsetZ=" + offsetZ +
                              " villageChunkX=" + villageChunkX + " villageChunkZ=" + villageChunkZ +
-                             " match=" + match);
+                             " testChunkX=" + chunkX + " testChunkZ=" + chunkZ +
+                             " match=" + (chunkX == villageChunkX && chunkZ == villageChunkZ));
         }
         
         // Only consider villages at their seed-determined chunk position
         if (chunkX != villageChunkX || chunkZ != villageChunkZ) {
             return false;
         }
+
+        System.out.println("[VILLAGE FOUND] seed=" + seed + " at chunk " + chunkX + "," + chunkZ);
 
         // Now validate the well location biomes
         int wellSize = 6;
@@ -82,7 +95,11 @@ public class VillageAlgorithm {
         int arbitraryConstant = 2;
         int wellStructureSize = (x2 - x1) / 2 + arbitraryConstant;
 
-        return biomeDataOracle.isValidBiomeForStructure(seed, wellX, wellZ, wellStructureSize, validBiomes);
+        boolean biomeValid = biomeDataOracle.isValidBiomeForStructure(seed, wellX, wellZ, wellStructureSize, validBiomes);
+        System.out.println("[BIOME VALID] seed=" + seed + " chunk=" + chunkX + "," + chunkZ + 
+                         " well=" + wellX + "," + wellZ + " result=" + biomeValid);
+        
+        return biomeValid;
     }
 
     /**

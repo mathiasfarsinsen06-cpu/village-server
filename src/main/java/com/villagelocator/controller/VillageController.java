@@ -17,6 +17,9 @@ import java.util.Map;
 @RequestMapping("/api/villages")
 @CrossOrigin(origins = "*")
 public class VillageController {
+
+    private static final int DEFAULT_RADIUS_CHUNKS = 50;
+    private static final int MAX_RADIUS_CHUNKS = 512;
     
     @Autowired
     private VillageFinderService villageFinderService;
@@ -28,7 +31,7 @@ public class VillageController {
      * - seed: long (required) - Minecraft world seed
      * - x: int (required) - center X coordinate in blocks
      * - z: int (required) - center Z coordinate in blocks
-     * - radius: int (optional, default=1000) - search radius in chunks
+     * - radius: int (optional, default=50, max=512) - search radius in chunks
      * 
      * Example: GET /api/villages?seed=5975010353295290926&x=-8729&z=-21647&radius=100
      */
@@ -37,20 +40,24 @@ public class VillageController {
             @RequestParam(value = "seed") long seed,
             @RequestParam(value = "x") int x,
             @RequestParam(value = "z") int z,
-            @RequestParam(value = "radius", defaultValue = "1000") int radiusChunks) {
+            @RequestParam(value = "radius", defaultValue = "50") int radiusChunks) {
+        int effectiveRadiusChunks = Math.max(0, Math.min(radiusChunks, MAX_RADIUS_CHUNKS));
+        if (effectiveRadiusChunks == 0) {
+            effectiveRadiusChunks = DEFAULT_RADIUS_CHUNKS;
+        }
         
         System.out.println("[API] Finding villages - seed=" + seed + " x=" + x + " z=" + z + 
-                         " radius=" + radiusChunks + " chunks");
+                         " radius=" + effectiveRadiusChunks + " chunks");
         
         try {
-            List<VillageLocation> villages = villageFinderService.findVillagesNear(seed, x, z, radiusChunks);
+            List<VillageLocation> villages = villageFinderService.findVillagesNear(seed, x, z, effectiveRadiusChunks);
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("seed", seed);
             response.put("centerX", x);
             response.put("centerZ", z);
-            response.put("radiusChunks", radiusChunks);
+            response.put("radiusChunks", effectiveRadiusChunks);
             response.put("villageCount", villages.size());
             response.put("villages", villages);
             

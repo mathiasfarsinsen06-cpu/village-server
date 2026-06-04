@@ -1,6 +1,5 @@
 package com.villagelocator.controller;
 
-import com.villagelocator.amidst.VillagerSpawner;
 import com.villagelocator.VillageLocatorApplication;
 import com.villagelocator.service.VillageFinderService;
 import com.villagelocator.service.VillageFinderService.VillageLocation;
@@ -29,14 +28,9 @@ class VillageControllerTest {
     private VillageFinderService villageFinderService;
 
     @Test
-    void findVillagesReturnsWrappedResponseWithVillagers() throws Exception {
-        List<VillagerSpawner.Villager> villagers = List.of(
-                new VillagerSpawner.Villager("Bob Smith", "librarian", 520, 1050, 3),
-                new VillagerSpawner.Villager("Alice Johnson", "farmer", 480, 1000, 2)
-        );
-
+    void findVillagesReturnsWrappedVillageOnlyResponse() throws Exception {
         List<VillageLocation> villages = List.of(
-                new VillageLocation(512, 1024, 32, 64, villagers)
+                new VillageLocation(512, 1024, 32, 64)
         );
 
         when(villageFinderService.findVillagesNear(5975010353295290926L, 0, 0, 50)).thenReturn(villages);
@@ -57,10 +51,6 @@ class VillageControllerTest {
                 .andExpect(jsonPath("$.villages[0].blockZ").value(1024))
                 .andExpect(jsonPath("$.villages[0].chunkX").value(32))
                 .andExpect(jsonPath("$.villages[0].chunkZ").value(64))
-                .andExpect(jsonPath("$.villages[0].villagers[0].name").value("Bob Smith"))
-                .andExpect(jsonPath("$.villages[0].villagers[0].profession").value("librarian"))
-                .andExpect(jsonPath("$.villages[0].villagers[0].blockX").value(520))
-                .andExpect(jsonPath("$.villages[0].villagers[0].blockZ").value(1050))
-                .andExpect(jsonPath("$.villages[0].villagers[0].level").value(3));
+                .andExpect(jsonPath("$.villages[0].villagers").doesNotExist());
     }
 }

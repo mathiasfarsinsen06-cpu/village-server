@@ -7,7 +7,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Service for finding villages using Minecraft 1.21.4 structure generation.
@@ -17,6 +20,8 @@ import java.util.List;
  */
 @Service
 public class VillageFinderService {
+
+    private static final int MAX_RADIUS_CHUNKS = 512;
     
     private final VillageStructureFinder villageStructureFinder;
     private final Minecraft121BiomeOracle biomeOracle;
@@ -66,13 +71,36 @@ public class VillageFinderService {
      * Find villages near a specific coordinate.
      */
     public List<VillageLocation> findVillagesNear(long seed, int centerX, int centerZ, int radiusChunks) {
+        int effectiveRadiusChunks = Math.max(1, Math.min(radiusChunks, MAX_RADIUS_CHUNKS));
         int centerChunkX = centerX >> 4;
         int centerChunkZ = centerZ >> 4;
-        
-        return findVillages(seed,
-                centerChunkX - radiusChunks, centerChunkX + radiusChunks,
-                centerChunkZ - radiusChunks, centerChunkZ + radiusChunks
+
+        List<VillageLocation> villages = findVillages(seed,
+                centerChunkX - effectiveRadiusChunks, centerChunkX + effectiveRadiusChunks,
+                centerChunkZ - effectiveRadiusChunks, centerChunkZ + effectiveRadiusChunks
         );
+
+        long radiusSquared = (long) effectiveRadiusChunks * effectiveRadiusChunks;
+        Map<Long, VillageLocation> uniqueVillages = new LinkedHashMap<>();
+        for (VillageLocation village : villages) {
+            long dx = (long) village.chunkX - centerChunkX;
+            long dz = (long) village.chunkZ - centerChunkZ;
+            if ((dx * dx) + (dz * dz) <= radiusSquared) {
+                uniqueVillages.putIfAbsent(chunkKey(village.chunkX, village.chunkZ), village);
+            }
+        }
+
+        List<VillageLocation> result = new ArrayList<>(uniqueVillages.values());
+        result.sort(Comparator.comparingLong(village -> {
+            long dx = (long) village.chunkX - centerChunkX;
+            long dz = (long) village.chunkZ - centerChunkZ;
+            return (dx * dx) + (dz * dz);
+        }));
+        return result;
+    }
+
+    private long chunkKey(int chunkX, int chunkZ) {
+        return (((long) chunkX) << 32) ^ (chunkZ & 0xffffffffL);
     }
     
     /**

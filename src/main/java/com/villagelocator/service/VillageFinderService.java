@@ -1,50 +1,61 @@
 package com.villagelocator.service;
 
 import com.villagelocator.amidst.Minecraft121BiomeOracle;
-import com.villagelocator.amidst.VillageAlgorithm;
+import com.villagelocator.amidst.VillageStructureFinder;
+import com.villagelocator.amidst.VillageStructureFinder.VillageChunk;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 /**
- * Service for finding villages with AMIDST v4.7 validation.
- * Only returns villages that can actually generate with villagers.
+ * Service for finding villages using Minecraft 1.21.4's EXACT algorithm.
+ * Now uses real village structure finder instead of fake algorithm.
  */
 @Service
 public class VillageFinderService {
     
-    private final VillageAlgorithm villageAlgorithm;
+    private final VillageStructureFinder villageStructureFinder;
+    private final Minecraft121BiomeOracle biomeOracle;
     
     public VillageFinderService() {
-        Minecraft121BiomeOracle biomeOracle = new Minecraft121BiomeOracle();
-        List<String> validBiomes = Arrays.asList(
-            "plains", "savanna", "desert", "taiga", "snowy_plains", "cherry_grove"
-        );
-        this.villageAlgorithm = new VillageAlgorithm(biomeOracle, validBiomes);
+        this.villageStructureFinder = new VillageStructureFinder();
+        this.biomeOracle = new Minecraft121BiomeOracle();
     }
     
     /**
      * Find all valid villages in a region for the given seed.
-     * Must check all chunks to find seed-dependent village spawn locations.
+     * Uses Minecraft's real structure generation algorithm.
      */
     public List<VillageLocation> findVillages(long seed, int minChunkX, int maxChunkX, 
                                                int minChunkZ, int maxChunkZ) {
         List<VillageLocation> villages = new ArrayList<>();
         
-        // Villages spawn in a grid pattern. We need to check every chunk
-        // to find the seed-dependent spawn locations within each 32x32 region.
-        for (int chunkX = minChunkX; chunkX <= maxChunkX; chunkX++) {
-            for (int chunkZ = minChunkZ; chunkZ <= maxChunkZ; chunkZ++) {
-                if (villageAlgorithm.isValidLocation(seed, chunkX, chunkZ)) {
-                    villages.add(new VillageLocation(
-                        chunkX * 16 + 8,
-                        chunkZ * 16 + 8,
-                        chunkX,
-                        chunkZ
-                    ));
-                }
+        System.out.println("[VILLAGE SERVICE] Finding villages for seed=" + seed + 
+                         " region X:" + minChunkX + "-" + maxChunkX + " Z:" + minChunkZ + "-" + maxChunkZ);
+        
+        // Use real village structure finder
+        List<VillageChunk> structureLocations = villageStructureFinder.findVillages(
+            seed, minChunkX, maxChunkX, minChunkZ, maxChunkZ
+        );
+        
+        System.out.println("[VILLAGE SERVICE] Found " + structureLocations.size() + " potential village chunks");
+        
+        // Validate each village location with biome check
+        for (VillageChunk villageChunk : structureLocations) {
+            // Check if biome allows villages at this location
+            if (biomeOracle.isValidBiomeForVillage(seed, villageChunk.blockX, villageChunk.blockZ)) {
+                villages.add(new VillageLocation(
+                    villageChunk.blockX,
+                    villageChunk.blockZ,
+                    villageChunk.chunkX,
+                    villageChunk.chunkZ
+                ));
+                System.out.println("[VILLAGE VALID] Biome check passed for chunk " + 
+                                 villageChunk.chunkX + "," + villageChunk.chunkZ);
+            } else {
+                System.out.println("[VILLAGE REJECTED] Biome check failed for chunk " + 
+                                 villageChunk.chunkX + "," + villageChunk.chunkZ);
             }
         }
         

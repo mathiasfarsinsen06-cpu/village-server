@@ -32,14 +32,18 @@ class VillageFinderServiceTest {
     void findVillagesNearReturnsNearbyVillages() {
         VillageFinderService service = new VillageFinderService();
 
-        // Search 100 chunks around origin
+        // Search 50 chunks around origin
         List<VillageFinderService.VillageLocation> villages = 
-            service.findVillagesNear(12345L, 0, 0, 100);
+            service.findVillagesNear(2603171484307346941L, 0, 0, 50);
 
         assertNotNull(villages);
-        // May or may not find villages depending on seed
+        assertTrue(villages.size() < 1024, "Village count should stay bounded for normal radius");
+
         for (VillageFinderService.VillageLocation village : villages) {
             assertNotNull(village);
+            long dx = village.chunkX;
+            long dz = village.chunkZ;
+            assertTrue((dx * dx) + (dz * dz) <= 50L * 50L, "Village should be inside requested radius");
         }
     }
 }

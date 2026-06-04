@@ -32,10 +32,10 @@ public class VillageStructureFinder {
         List<VillageChunk> villages = new ArrayList<>();
         
         // Minecraft divides world into regions for structure generation
-        int startRegionX = minChunkX / SPACING;
-        int endRegionX = maxChunkX / SPACING;
-        int startRegionZ = minChunkZ / SPACING;
-        int endRegionZ = maxChunkZ / SPACING;
+        int startRegionX = Math.floorDiv(minChunkX, SPACING);
+        int endRegionX = Math.floorDiv(maxChunkX, SPACING);
+        int startRegionZ = Math.floorDiv(minChunkZ, SPACING);
+        int endRegionZ = Math.floorDiv(maxChunkZ, SPACING);
         
         System.out.println("[VILLAGE FINDER] Searching regions X:" + startRegionX + "-" + endRegionX + 
                          " Z:" + startRegionZ + "-" + endRegionZ);

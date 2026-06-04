@@ -3,6 +3,7 @@ package com.villagelocator.service;
 import com.villagelocator.amidst.Minecraft121BiomeOracle;
 import com.villagelocator.amidst.VillageStructureFinder;
 import com.villagelocator.amidst.VillageStructureFinder.VillageChunk;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -76,12 +77,19 @@ public class VillageFinderService {
     }
     
     /**
-     * Represents a found village location.
+     * Represents a found village location with proper JSON serialization.
      */
     public static class VillageLocation {
+        @JsonProperty("blockX")
         public final int blockX;
+        
+        @JsonProperty("blockZ")
         public final int blockZ;
+        
+        @JsonProperty("chunkX")
         public final int chunkX;
+        
+        @JsonProperty("chunkZ")
         public final int chunkZ;
         
         public VillageLocation(int blockX, int blockZ, int chunkX, int chunkZ) {

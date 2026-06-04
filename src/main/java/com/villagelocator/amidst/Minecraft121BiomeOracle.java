@@ -17,9 +17,29 @@ public class Minecraft121BiomeOracle implements BiomeDataOracle {
         "snowy_plains",
         "cherry_grove"
     };
+    
+    // Non-village biomes that should block villages
+    private static final String[] NON_VILLAGE_BIOMES = {
+        "ocean",
+        "deep_ocean",
+        "forest",
+        "dark_forest",
+        "jungle",
+        "swamp",
+        "mountain",
+        "snowy_mountain",
+        "badlands",
+        "mushroom_fields",
+        "nether",
+        "end",
+        "void"
+    };
 
     @Override
     public boolean isValidBiomeForStructure(long seed, int centerX, int centerZ, int structureSize, List<String> validBiomes) {
+        System.out.println("[BIOME CHECK] seed=" + seed + " center=" + centerX + "," + centerZ + 
+                         " structureSize=" + structureSize);
+        
         // Check biomes at 4-block intervals as per AMIDST algorithm
         int checkInterval = 4;
         
@@ -29,59 +49,47 @@ public class Minecraft121BiomeOracle implements BiomeDataOracle {
         int minZ = centerZ - structureSize;
         int maxZ = centerZ + structureSize;
         
+        int checkCount = 0;
+        int validCount = 0;
+        
         // Check key points in grid
         for (int x = minX; x <= maxX; x += checkInterval) {
             for (int z = minZ; z <= maxZ; z += checkInterval) {
                 String biome = getBiomeAt(seed, x, z);
-                if (!validBiomes.contains(biome)) {
+                checkCount++;
+                System.out.println("[BIOME POINT] x=" + x + " z=" + z + " biome=" + biome + " valid=" + validBiomes.contains(biome));
+                if (validBiomes.contains(biome)) {
+                    validCount++;
+                } else {
+                    // If ANY point is invalid, reject
+                    System.out.println("[BIOME REJECT] Invalid biome " + biome + " at " + x + "," + z);
                     return false;
                 }
             }
         }
         
-        return true;
+        System.out.println("[BIOME RESULT] checked " + checkCount + " points, all valid=" + (validCount == checkCount));
+        return validCount == checkCount;
     }
 
     @Override
     public String getBiomeAt(long seed, int x, int z) {
-        // DEBUG: Log seed and coordinates
-        if (x == 0 && z == 0) {
-            System.out.println("[DEBUG] getBiomeAt called: seed=" + seed + ", x=" + x + ", z=" + z);
-        }
-        
-        // Use full 64-bit seed with coordinates to generate deterministic biome
+        // Use seed and block coordinates to generate deterministic but seed-dependent biome
         long hash = mix64(seed);
         hash ^= mix64((long) x);
         hash ^= mix64((long) z);
         hash = mix64(hash);
         
+        // Use lower bits for primary biome selection - varies with seed
         long absHash = Math.abs(hash);
-        int primaryIndex = (int) (absHash % VILLAGE_BIOMES.length);
-        String primaryBiome = VILLAGE_BIOMES[primaryIndex];
+        int biomeIndex = (int) (absHash % (VILLAGE_BIOMES.length + NON_VILLAGE_BIOMES.length));
         
-        // Spatial coherence using chunk coordinates
-        long chunkSeed = mix64(seed);
-        int chunkX = x >> 4;
-        int chunkZ = z >> 4;
-        chunkSeed ^= mix64((long) chunkX);
-        chunkSeed ^= mix64((long) chunkZ);
-        chunkSeed = mix64(chunkSeed);
-        
-        long absChunkHash = Math.abs(chunkSeed);
-        int probability = (int) (absChunkHash % 100);
-        
+        // 60% village biomes, 40% non-village biomes
         String result;
-        if (probability < 45) {
-            result = "plains";
-        } else if (probability < 70) {
-            result = primaryBiome;
+        if (biomeIndex < VILLAGE_BIOMES.length) {
+            result = VILLAGE_BIOMES[(int)(absHash % VILLAGE_BIOMES.length)];
         } else {
-            int secondaryIndex = (int) ((absChunkHash >> 32) % VILLAGE_BIOMES.length);
-            result = VILLAGE_BIOMES[secondaryIndex];
-        }
-        
-        if (x == 0 && z == 0) {
-            System.out.println("[DEBUG] Result: " + result + ", probability=" + probability + ", hash=" + hash);
+            result = NON_VILLAGE_BIOMES[(int)((absHash >> 16) % NON_VILLAGE_BIOMES.length)];
         }
         
         return result;
